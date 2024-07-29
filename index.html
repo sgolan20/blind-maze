@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>המבוך הקולי - חוויה משופרת</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .btn {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #2ecc71;
+            color: white;
+        }
+        .btn-info {
+            background-color: #f39c12;
+            color: white;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 300px;
+            margin: 20px auto;
+        }
+        .controls .btn {
+            font-size: 24px;
+        }
+        #moveUp { grid-column: 2; }
+        #moveLeft { grid-column: 1; grid-row: 2; }
+        #moveRight { grid-column: 3; grid-row: 2; }
+        #moveDown { grid-column: 2; grid-row: 3; }
+        #maze-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        table {
+            border-collapse: separate;
+            border-spacing: 2px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+        }
+        td {
+            width: 40px;
+            height: 40px;
+            text-align: center;
+            font-size: 20px;
+            border-radius: 5px;
+        }
+        .wall {
+            background-color: #34495e;
+        }
+        .player {
+            background-color: #3498db;
+            color: white;
+        }
+        .goal {
+            background-color: #e74c3c;
+            color: white;
+        }
+        #status, #time {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ברוכים הבאים למבוך הקולי!</h1>
+        <p>בחרו את מצב המשחק:</p>
+        <button id="startGameTimed" class="btn btn-primary"><i class="fas fa-hourglass-start"></i> משחק עם הגבלת זמן</button>
+        <button id="startGameUntimed" class="btn btn-secondary"><i class="fas fa-infinity"></i> משחק ללא הגבלת זמן</button>
+        
+        <div class="controls">
+            <button id="moveUp" class="btn btn-primary"><i class="fas fa-arrow-up"></i></button>
+            <button id="moveLeft" class="btn btn-primary"><i class="fas fa-arrow-right"></i></button>
+            <button id="moveRight" class="btn btn-primary"><i class="fas fa-arrow-left"></i></button>
+            <button id="moveDown" class="btn btn-primary"><i class="fas fa-arrow-down"></i></button>
+        </div>
+        
+        <button id="getPosition" class="btn btn-info"><i class="fas fa-map-marker-alt"></i> איפה אני?</button>
+        <button id="getInstructions" class="btn btn-info"><i class="fas fa-question-circle"></i> הוראות</button>
+        
+        <p id="status"></p>
+        <p id="time"></p>
+        <div id="maze-container"></div>
+    </div>
+
+    <script>
+        const maze = [
+            [0, 0, 1, 0, 0],
+            [1, 0, 1, 1, 0],
+            [0, 0, 0, 0, 0],
+            [0, 1, 1, 1, 0],
+            [0, 0, 0, 1, 'G']
+        ];
+        let playerPosition = {x: 0, y: 0};
+        let timeLeft = 60;
+        let gameInterval;
+        let updateInterval;
+        let isTimedMode = false;
+        let isGameStarted = false;
+
+        const startButtonTimed = document.getElementById('startGameTimed');
+        const startButtonUntimed = document.getElementById('startGameUntimed');
+        const positionButton = document.getElementById('getPosition');
+        const instructionsButton = document.getElementById('getInstructions');
+        const statusElement = document.getElementById('status');
+        const timeElement = document.getElementById('time');
+        const mazeContainer = document.getElementById('maze-container');
+
+        startButtonTimed.addEventListener('click', () => startGame(true));
+        startButtonUntimed.addEventListener('click', () => startGame(false));
+        positionButton.addEventListener('click', announcePosition);
+        instructionsButton.addEventListener('click', announceInstructions);
+
+        document.getElementById('moveUp').addEventListener('click', () => move('up'));
+        document.getElementById('moveDown').addEventListener('click', () => move('down'));
+        document.getElementById('moveLeft').addEventListener('click', () => move('right'));
+        document.getElementById('moveRight').addEventListener('click', () => move('left'));
+
+        function startGame(timed) {
+            playerPosition = {x: 0, y: 0};
+            isTimedMode = timed;
+            isGameStarted = true;
+            if (timed) {
+                timeLeft = 60;
+                timeElement.style.display = 'block';
+                gameInterval = setInterval(updateGame, 1000);
+                speak('המשחק התחיל במצב מוגבל זמן! יש לך 60 שניות להגיע ליעד.');
+            } else {
+                timeElement.style.display = 'none';
+                speak('המשחק התחיל במצב ללא הגבלת זמן. קח את הזמן שלך לחקור את המבוך.');
+            }
+            updateInterval = setInterval(updateStatus, 10000);
+            document.addEventListener('keydown', handleKeyPress);
+            renderMaze();
+        }
+
+        function handleKeyPress(event) {
+            if (!isGameStarted) return;
+            
+            const key = event.key.toLowerCase();
+            if (key === 'arrowup' || key === 'w') move('up');
+            else if (key === 'arrowdown' || key === 's') move('down');
+            else if (key === 'arrowright' || key === 'd') move('left');
+            else if (key === 'arrowleft' || key === 'a') move('right');
+        }
+
+        function updateGame() {
+            if (isTimedMode) {
+                timeLeft--;
+                timeElement.textContent = `זמן נותר: ${timeLeft} שניות`;
+                if (timeLeft <= 0) {
+                    endGame('הזמן נגמר! המשחק נגמר.');
+                }
+            }
+        }
+
+        function updateStatus() {
+            const surroundings = getSurroundings();
+            speak(surroundings);
+        }
+
+        function move(direction) {
+            let newX = playerPosition.x;
+            let newY = playerPosition.y;
+
+            if (direction === 'up') newY--;
+            else if (direction === 'down') newY++;
+            else if (direction === 'left') newX--;
+            else if (direction === 'right') newX++;
+
+            if (isValidMove(newX, newY)) {
+                playerPosition.x = newX;
+                playerPosition.y = newY;
+                checkPosition();
+                playMoveSound();
+                speak(`זזת ${getDirectionName(direction)}`, true);
+                renderMaze();
+            } else {
+                playBlockedSound();
+                speak(`לא ניתן לזוז ${getDirectionName(direction)}, יש קיר`, true);
+            }
+        }
+
+        function getDirectionName(direction) {
+            switch(direction) {
+                case 'up': return 'למעלה';
+                case 'down': return 'למטה';
+                case 'left': return 'ימינה';
+                case 'right': return 'שמאלה';
+            }
+        }
+
+        function isValidMove(x, y) {
+            return x >= 0 && x < 5 && y >= 0 && y < 5 && maze[y][x] !== 1;
+        }
+
+        function checkPosition() {
+            if (maze[playerPosition.y][playerPosition.x] === 'G') {
+                setTimeout(() => {
+                    endGameWithDelay('כל הכבוד! הגעת ליעד!');
+                }, 1000);
+            }
+        }
+
+        function getSurroundings() {
+            let message = 'סביבך: ';
+            if (playerPosition.y > 0 && maze[playerPosition.y - 1][playerPosition.x] !== 1) message += 'פתוח למעלה. ';
+            if (playerPosition.y < 4 && maze[playerPosition.y + 1][playerPosition.x] !== 1) message += 'פתוח למטה. ';
+            if (playerPosition.x < 4 && maze[playerPosition.y][playerPosition.x + 1] !== 1) message += 'פתוח משמאל. ';
+            if (playerPosition.x > 0 && maze[playerPosition.y][playerPosition.x - 1] !== 1) message += 'פתוח מימין. ';
+            return message;
+        }
+
+        function announcePosition() {
+            const x = playerPosition.x + 1;
+            const y = playerPosition.y + 1;
+            speak(`אתה נמצא בעמודה ${x}, שורה ${y}.`, true);
+        }
+
+        function announceInstructions() {
+            speak('השתמש בכפתורים או במקשים הבאים לתנועה: למעלה - מקש למעלה או W, למטה - מקש למטה או S, שמאלה - מקש שמאלה או A, ימינה - מקש ימינה או D. לחץ על כפתור "איפה אני?" כדי לשמוע את מיקומך הנוכחי.', true);
+        }
+
+        function endGameWithDelay(message) {
+            isGameStarted = false;
+            clearInterval(gameInterval);
+            clearInterval(updateInterval);
+            document.removeEventListener('keydown', handleKeyPress);
+            statusElement.textContent = message;
+            speak(message, true);
+        }
+
+        function endGame(message) {
+            isGameStarted = false;
+            clearInterval(gameInterval);
+            clearInterval(updateInterval);
+            document.removeEventListener('keydown', handleKeyPress);
+            statusElement.textContent = message;
+            speak(message, true);
+        }
+
+        function speak(text, interrupt = false) {
+            if (interrupt) {
+                window.speechSynthesis.cancel();
+            }
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'he-IL';
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function playMoveSound() {
+            const audio = new Audio('https://example.com/move-sound.mp3');
+            audio.play();
+        }
+
+        function playBlockedSound() {
+            const audio = new Audio('https://example.com/blocked-sound.mp3');
+            audio.play();
+        }
+
+        function renderMaze() {
+            mazeContainer.innerHTML = '';
+            const table = document.createElement('table');
+            for (let y = 0; y < maze.length; y++) {
+                const row = document.createElement('tr');
+                for (let x = 0; x < maze[y].length; x++) {
+                    const cell = document.createElement('td');
+                    if (x === playerPosition.x && y === playerPosition.y) {
+                        cell.textContent = '😊';
+                        cell.className = 'player';
+                    } else if (maze[y][x] === 1) {
+                        cell.className = 'wall';
+                    } else if (maze[y][x] === 'G') {
+                        cell.textContent = '🏁';
+                        cell.className = 'goal';
+                    }
+                    row.appendChild(cell);
+                }
+                table.appendChild(row);
+            }
+            mazeContainer.appendChild(table);
+        }
+
+        // הוסף את מאזין האירועים למקלדת מחוץ לפונקציות
+        document.addEventListener('keydown', handleKeyPress);
+    </script>
+</body>
+</html>
