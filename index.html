@@ -94,6 +94,21 @@
             background-color: #e74c3c;
             color: white;
         }
+        #timerBarContainer {
+            width: 100%;
+            height: 20px;
+            background-color: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            display: none;
+        }
+        #timerBar {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
+            transition: width 1s linear;
+        }
         #status, #time {
             margin-top: 20px;
             font-weight: bold;
@@ -102,6 +117,7 @@
 </head>
 <body>
     <div class="container">
+        <div id="timerBarContainer"><div id="timerBar"></div></div>
         <h1>ברוכים הבאים למבוך הקולי!</h1>
         <p>בחרו את מצב המשחק:</p>
         <button id="startGameTimed" class="btn btn-primary"><i class="fas fa-hourglass-start"></i> משחק עם הגבלת זמן</button>
@@ -131,7 +147,8 @@
             [0, 0, 0, 1, 'G']
         ];
         let playerPosition = {x: 0, y: 0};
-        let timeLeft = 60;
+        const INITIAL_TIME = 60;
+        let timeLeft = INITIAL_TIME;
         let gameInterval;
         let updateInterval;
         let isTimedMode = false;
@@ -144,6 +161,8 @@
         const statusElement = document.getElementById('status');
         const timeElement = document.getElementById('time');
         const mazeContainer = document.getElementById('maze-container');
+        const timerBar = document.getElementById('timerBar');
+        const timerBarContainer = document.getElementById('timerBarContainer');
 
         startButtonTimed.addEventListener('click', () => startGame(true));
         startButtonUntimed.addEventListener('click', () => startGame(false));
@@ -160,12 +179,15 @@
             isTimedMode = timed;
             isGameStarted = true;
             if (timed) {
-                timeLeft = 60;
+                timeLeft = INITIAL_TIME;
                 timeElement.style.display = 'block';
+                timerBarContainer.style.display = 'block';
+                timerBar.style.width = '100%';
                 gameInterval = setInterval(updateGame, 1000);
                 speak('המשחק התחיל במצב מוגבל זמן! יש לך 60 שניות להגיע ליעד.');
             } else {
                 timeElement.style.display = 'none';
+                timerBarContainer.style.display = 'none';
                 speak('המשחק התחיל במצב ללא הגבלת זמן. קח את הזמן שלך לחקור את המבוך.');
             }
             updateInterval = setInterval(updateStatus, 10000);
@@ -187,6 +209,7 @@
             if (isTimedMode) {
                 timeLeft--;
                 timeElement.textContent = `זמן נותר: ${timeLeft} שניות`;
+                timerBar.style.width = `${(timeLeft / INITIAL_TIME) * 100}%`;
                 if (timeLeft <= 0) {
                     endGame('הזמן נגמר! המשחק נגמר.');
                 }
@@ -266,6 +289,7 @@
             clearInterval(updateInterval);
             document.removeEventListener('keydown', handleKeyPress);
             statusElement.textContent = message;
+            timerBarContainer.style.display = 'none';
             speak(message, true);
         }
 
@@ -275,6 +299,7 @@
             clearInterval(updateInterval);
             document.removeEventListener('keydown', handleKeyPress);
             statusElement.textContent = message;
+            timerBarContainer.style.display = 'none';
             speak(message, true);
         }
 
@@ -297,6 +322,11 @@
             audio.play();
         }
 
+        function getRandomColor() {
+            const hue = Math.floor(Math.random() * 360);
+            return `hsl(${hue}, 70%, 80%)`;
+        }
+
         function renderMaze() {
             mazeContainer.innerHTML = '';
             const table = document.createElement('table');
@@ -312,6 +342,8 @@
                     } else if (maze[y][x] === 'G') {
                         cell.textContent = '🏁';
                         cell.className = 'goal';
+                    } else {
+                        cell.style.backgroundColor = getRandomColor();
                     }
                     row.appendChild(cell);
                 }
