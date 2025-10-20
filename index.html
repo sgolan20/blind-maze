@@ -116,39 +116,74 @@
         
         <button id="getPosition" class="btn btn-info"><i class="fas fa-map-marker-alt"></i> איפה אני?</button>
         <button id="getInstructions" class="btn btn-info"><i class="fas fa-question-circle"></i> הוראות</button>
-        
+        <button id="nextLevel" class="btn btn-secondary" style="display: none;"><i class="fas fa-forward"></i> שלב הבא</button>
+
+        <p id="levelInfo" style="font-size: 20px; font-weight: bold; color: #2c3e50;"></p>
+        <p id="itemsInfo" style="font-size: 18px; color: #e67e22;"></p>
         <p id="status"></p>
         <p id="time"></p>
         <div id="maze-container"></div>
     </div>
 
     <script>
-        const maze = [
-            [0, 0, 1, 0, 0],
-            [1, 0, 1, 1, 0],
-            [0, 0, 0, 0, 0],
-            [0, 1, 1, 1, 0],
-            [0, 0, 0, 1, 'G']
+        // מערכת שלבים - כל שלב עם מבוך ופריטים לאיסוף
+        const levels = [
+            {
+                maze: [
+                    [0, 0, 1, 0, 0],
+                    [1, 0, 1, 1, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 0],
+                    [0, 0, 0, 1, 'G']
+                ],
+                collectibles: [], // שלב 1 ללא פריטים
+                description: 'שלב 1 - מבוך בסיסי'
+            },
+            {
+                maze: [
+                    [0, 0, 1, 0, 0, 0, 0],
+                    [0, 1, 1, 0, 1, 1, 0],
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 0, 1, 1, 0, 1],
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 0, 1, 0],
+                    [0, 0, 0, 0, 0, 0, 'G']
+                ],
+                collectibles: [
+                    {x: 3, y: 1, type: 'key', emoji: '🔑', name: 'מפתח', collected: false},
+                    {x: 4, y: 4, type: 'coin', emoji: '💰', name: 'מטבע', collected: false},
+                    {x: 1, y: 5, type: 'star', emoji: '⭐', name: 'כוכב', collected: false}
+                ],
+                description: 'שלב 2 - מבוך עם נקודות ציון (אסוף 3 פריטים)'
+            }
         ];
+
+        let currentLevel = 0;
         let playerPosition = {x: 0, y: 0};
         let timeLeft = 60;
         let gameInterval;
         let updateInterval;
+        let proximityInterval;
         let isTimedMode = false;
         let isGameStarted = false;
+        let collectedItems = [];
 
         const startButtonTimed = document.getElementById('startGameTimed');
         const startButtonUntimed = document.getElementById('startGameUntimed');
         const positionButton = document.getElementById('getPosition');
         const instructionsButton = document.getElementById('getInstructions');
+        const nextLevelButton = document.getElementById('nextLevel');
         const statusElement = document.getElementById('status');
         const timeElement = document.getElementById('time');
         const mazeContainer = document.getElementById('maze-container');
+        const levelInfoElement = document.getElementById('levelInfo');
+        const itemsInfoElement = document.getElementById('itemsInfo');
 
         startButtonTimed.addEventListener('click', () => startGame(true));
         startButtonUntimed.addEventListener('click', () => startGame(false));
         positionButton.addEventListener('click', announcePosition);
         instructionsButton.addEventListener('click', announceInstructions);
+        nextLevelButton.addEventListener('click', goToNextLevel);
 
         document.getElementById('moveUp').addEventListener('click', () => move('up'));
         document.getElementById('moveDown').addEventListener('click', () => move('down'));
@@ -159,17 +194,25 @@
             playerPosition = {x: 0, y: 0};
             isTimedMode = timed;
             isGameStarted = true;
+            collectedItems = [];
+            nextLevelButton.style.display = 'none';
+
+            // איפוס פריטים לאיסוף
+            levels[currentLevel].collectibles.forEach(item => item.collected = false);
+
             if (timed) {
                 timeLeft = 60;
                 timeElement.style.display = 'block';
                 gameInterval = setInterval(updateGame, 1000);
-                speak('המשחק התחיל במצב מוגבל זמן! יש לך 60 שניות להגיע ליעד.');
+                speak(`${levels[currentLevel].description}. המשחק התחיל במצב מוגבל זמן! יש לך 60 שניות.`);
             } else {
                 timeElement.style.display = 'none';
-                speak('המשחק התחיל במצב ללא הגבלת זמן. קח את הזמן שלך לחקור את המבוך.');
+                speak(`${levels[currentLevel].description}. המשחק התחיל במצב ללא הגבלת זמן. קח את הזמן שלך.`);
             }
             updateInterval = setInterval(updateStatus, 10000);
+            proximityInterval = setInterval(checkItemProximity, 3000);
             document.addEventListener('keydown', handleKeyPress);
+            updateLevelInfo();
             renderMaze();
         }
 
@@ -210,6 +253,7 @@
             if (isValidMove(newX, newY)) {
                 playerPosition.x = newX;
                 playerPosition.y = newY;
+                checkForCollectible();
                 checkPosition();
                 playMoveSound();
                 speak(`זזת ${getDirectionName(direction)}`, true);
@@ -230,23 +274,34 @@
         }
 
         function isValidMove(x, y) {
-            return x >= 0 && x < 5 && y >= 0 && y < 5 && maze[y][x] !== 1;
+            const currentMaze = levels[currentLevel].maze;
+            const mazeSize = currentMaze.length;
+            return x >= 0 && x < mazeSize && y >= 0 && y < mazeSize && currentMaze[y][x] !== 1;
         }
 
         function checkPosition() {
-            if (maze[playerPosition.y][playerPosition.x] === 'G') {
+            const currentMaze = levels[currentLevel].maze;
+            if (currentMaze[playerPosition.y][playerPosition.x] === 'G') {
+                // בשלב 2, צריך לאסוף את כל הפריטים לפני הניצחון
+                const totalItems = levels[currentLevel].collectibles.length;
+                if (totalItems > 0 && collectedItems.length < totalItems) {
+                    speak(`הגעת ליעד, אבל עדיין לא אספת את כל הפריטים! אספת ${collectedItems.length} מתוך ${totalItems}.`, true);
+                    return;
+                }
                 setTimeout(() => {
-                    endGameWithDelay('כל הכבוד! הגעת ליעד!');
+                    endGameWithDelay();
                 }, 1000);
             }
         }
 
         function getSurroundings() {
+            const currentMaze = levels[currentLevel].maze;
+            const mazeSize = currentMaze.length;
             let message = 'סביבך: ';
-            if (playerPosition.y > 0 && maze[playerPosition.y - 1][playerPosition.x] !== 1) message += 'פתוח למעלה. ';
-            if (playerPosition.y < 4 && maze[playerPosition.y + 1][playerPosition.x] !== 1) message += 'פתוח למטה. ';
-            if (playerPosition.x < 4 && maze[playerPosition.y][playerPosition.x + 1] !== 1) message += 'פתוח משמאל. ';
-            if (playerPosition.x > 0 && maze[playerPosition.y][playerPosition.x - 1] !== 1) message += 'פתוח מימין. ';
+            if (playerPosition.y > 0 && currentMaze[playerPosition.y - 1][playerPosition.x] !== 1) message += 'פתוח למעלה. ';
+            if (playerPosition.y < mazeSize - 1 && currentMaze[playerPosition.y + 1][playerPosition.x] !== 1) message += 'פתוח למטה. ';
+            if (playerPosition.x < mazeSize - 1 && currentMaze[playerPosition.y][playerPosition.x + 1] !== 1) message += 'פתוח משמאל. ';
+            if (playerPosition.x > 0 && currentMaze[playerPosition.y][playerPosition.x - 1] !== 1) message += 'פתוח מימין. ';
             return message;
         }
 
@@ -260,11 +315,23 @@
             speak('השתמש בכפתורים או במקשים הבאים לתנועה: למעלה - מקש למעלה או W, למטה - מקש למטה או S, שמאלה - מקש שמאלה או A, ימינה - מקש ימינה או D. לחץ על כפתור "איפה אני?" כדי לשמוע את מיקומך הנוכחי.', true);
         }
 
-        function endGameWithDelay(message) {
+        function endGameWithDelay() {
             isGameStarted = false;
             clearInterval(gameInterval);
             clearInterval(updateInterval);
+            clearInterval(proximityInterval);
             document.removeEventListener('keydown', handleKeyPress);
+
+            let message = 'כל הכבוד! הגעת ליעד!';
+
+            // אם יש עוד שלבים
+            if (currentLevel < levels.length - 1) {
+                message += ' לחץ על "שלב הבא" להמשיך.';
+                nextLevelButton.style.display = 'inline-block';
+            } else {
+                message += ' סיימת את כל השלבים!';
+            }
+
             statusElement.textContent = message;
             speak(message, true);
         }
@@ -273,6 +340,7 @@
             isGameStarted = false;
             clearInterval(gameInterval);
             clearInterval(updateInterval);
+            clearInterval(proximityInterval);
             document.removeEventListener('keydown', handleKeyPress);
             statusElement.textContent = message;
             speak(message, true);
@@ -298,26 +366,126 @@
         }
 
         function renderMaze() {
+            const currentMaze = levels[currentLevel].maze;
+            const collectibles = levels[currentLevel].collectibles;
+
             mazeContainer.innerHTML = '';
             const table = document.createElement('table');
-            for (let y = 0; y < maze.length; y++) {
+            for (let y = 0; y < currentMaze.length; y++) {
                 const row = document.createElement('tr');
-                for (let x = 0; x < maze[y].length; x++) {
+                for (let x = 0; x < currentMaze[y].length; x++) {
                     const cell = document.createElement('td');
+
+                    // בדיקה אם השחקן נמצא כאן
                     if (x === playerPosition.x && y === playerPosition.y) {
                         cell.textContent = '😊';
                         cell.className = 'player';
-                    } else if (maze[y][x] === 1) {
-                        cell.className = 'wall';
-                    } else if (maze[y][x] === 'G') {
-                        cell.textContent = '🏁';
-                        cell.className = 'goal';
+                    }
+                    // בדיקה אם יש פריט שלא נאסף כאן
+                    else {
+                        const collectible = collectibles.find(item =>
+                            item.x === x && item.y === y && !item.collected
+                        );
+                        if (collectible) {
+                            cell.textContent = collectible.emoji;
+                            cell.style.backgroundColor = '#f1c40f';
+                        } else if (currentMaze[y][x] === 1) {
+                            cell.className = 'wall';
+                        } else if (currentMaze[y][x] === 'G') {
+                            cell.textContent = '🏁';
+                            cell.className = 'goal';
+                        }
                     }
                     row.appendChild(cell);
                 }
                 table.appendChild(row);
             }
             mazeContainer.appendChild(table);
+        }
+
+        // פונקציה לבדיקת איסוף פריט
+        function checkForCollectible() {
+            const collectibles = levels[currentLevel].collectibles;
+            const item = collectibles.find(item =>
+                item.x === playerPosition.x &&
+                item.y === playerPosition.y &&
+                !item.collected
+            );
+
+            if (item) {
+                item.collected = true;
+                collectedItems.push(item);
+                speak(`מצאת ${item.name}! אספת ${collectedItems.length} מתוך ${collectibles.length} פריטים.`, true);
+                updateLevelInfo();
+            }
+        }
+
+        // פונקציה לבדיקת קרבה לפריטים
+        function checkItemProximity() {
+            if (!isGameStarted) return;
+
+            const collectibles = levels[currentLevel].collectibles;
+            const uncollectedItems = collectibles.filter(item => !item.collected);
+
+            if (uncollectedItems.length === 0) return;
+
+            // מצא את הפריט הקרוב ביותר
+            let closestItem = null;
+            let minDistance = Infinity;
+
+            uncollectedItems.forEach(item => {
+                const distance = Math.abs(item.x - playerPosition.x) +
+                               Math.abs(item.y - playerPosition.y);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestItem = item;
+                }
+            });
+
+            // אם קרוב מאוד (1-2 צעדים)
+            if (minDistance === 1) {
+                const direction = getDirectionToItem(closestItem);
+                speak(`${closestItem.name} ממש לידך - ${direction}!`);
+            } else if (minDistance === 2) {
+                speak(`${closestItem.name} קרוב אליך, כ-2 צעדים.`);
+            }
+        }
+
+        // פונקציה למציאת כיוון לפריט
+        function getDirectionToItem(item) {
+            const dx = item.x - playerPosition.x;
+            const dy = item.y - playerPosition.y;
+
+            if (Math.abs(dx) > Math.abs(dy)) {
+                return dx > 0 ? 'משמאל' : 'מימין';
+            } else {
+                return dy > 0 ? 'למטה' : 'למעלה';
+            }
+        }
+
+        // עדכון מידע על השלב והפריטים
+        function updateLevelInfo() {
+            levelInfoElement.textContent = `שלב ${currentLevel + 1} מתוך ${levels.length}`;
+
+            const totalItems = levels[currentLevel].collectibles.length;
+            if (totalItems > 0) {
+                itemsInfoElement.textContent = `פריטים: ${collectedItems.length}/${totalItems}`;
+            } else {
+                itemsInfoElement.textContent = '';
+            }
+        }
+
+        // מעבר לשלב הבא
+        function goToNextLevel() {
+            if (currentLevel < levels.length - 1) {
+                currentLevel++;
+                nextLevelButton.style.display = 'none';
+                statusElement.textContent = '';
+                speak(`עובר לשלב ${currentLevel + 1}. ${levels[currentLevel].description}`, true);
+                setTimeout(() => {
+                    startGame(isTimedMode);
+                }, 2000);
+            }
         }
 
         // הוסף את מאזין האירועים למקלדת מחוץ לפונקציות
