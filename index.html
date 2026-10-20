@@ -1,495 +1,1287 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>המבוך הקולי - חוויה משופרת</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            text-align: center;
-            padding: 20px;
-            background-color: #f0f0f0;
-            color: #333;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #2c3e50;
-        }
-        .btn {
-            font-size: 18px;
-            padding: 10px 20px;
-            margin: 10px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.1s;
-        }
-        .btn:hover {
-            transform: scale(1.05);
-        }
-        .btn:active {
-            transform: scale(0.95);
-        }
-        .btn-primary {
-            background-color: #3498db;
-            color: white;
-        }
-        .btn-secondary {
-            background-color: #2ecc71;
-            color: white;
-        }
-        .btn-info {
-            background-color: #f39c12;
-            color: white;
-        }
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            max-width: 300px;
-            margin: 20px auto;
-        }
-        .controls .btn {
-            font-size: 24px;
-        }
-        #moveUp { grid-column: 2; }
-        #moveLeft { grid-column: 1; grid-row: 2; }
-        #moveRight { grid-column: 3; grid-row: 2; }
-        #moveDown { grid-column: 2; grid-row: 3; }
-        #maze-container {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
-        }
-        table {
-            border-collapse: separate;
-            border-spacing: 2px;
-            background-color: #ecf0f1;
-            border-radius: 5px;
-        }
-        td {
-            width: 40px;
-            height: 40px;
-            text-align: center;
-            font-size: 20px;
-            border-radius: 5px;
-        }
-        .wall {
-            background-color: #34495e;
-        }
-        .player {
-            background-color: #3498db;
-            color: white;
-        }
-        .goal {
-            background-color: #e74c3c;
-            color: white;
-        }
-        #status, #time {
-            margin-top: 20px;
-            font-weight: bold;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>המבוך הקולי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg-1: #0b1030;
+        --bg-2: #04050d;
+        --panel: rgba(20, 26, 60, 0.62);
+        --panel-border: rgba(140, 160, 255, 0.18);
+        --text: #e8ecff;
+        --muted: #9aa3d6;
+        --accent: #5eead4;
+        --accent-2: #a78bfa;
+        --gold: #ffd166;
+        --danger: #ff5470;
+        --ok: #3dffa2;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; }
+    body {
+        font-family: 'Rubik', 'Segoe UI', Tahoma, sans-serif;
+        color: var(--text);
+        background:
+            radial-gradient(1200px 600px at 80% -10%, rgba(167, 139, 250, 0.18), transparent 60%),
+            radial-gradient(900px 500px at 0% 110%, rgba(94, 234, 212, 0.14), transparent 60%),
+            linear-gradient(180deg, var(--bg-1), var(--bg-2));
+        background-color: var(--bg-2);
+        overflow: hidden;
+        user-select: none;
+    }
+    .app {
+        max-width: 980px;
+        height: 100dvh;
+        margin: 0 auto;
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    /* ---------- top bar ---------- */
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .brand {
+        font-weight: 900; font-size: clamp(20px, 4vw, 28px); letter-spacing: 0.5px; margin: 0;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hud { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip {
+        display: flex; align-items: center; gap: 6px;
+        background: var(--panel); border: 1px solid var(--panel-border);
+        padding: 6px 12px; border-radius: 999px; font-weight: 500; font-size: 15px;
+        backdrop-filter: blur(8px);
+        transition: transform .2s, background .2s;
+    }
+    .chip b { font-variant-numeric: tabular-nums; }
+    .chip.pop { transform: scale(1.15); }
+    .chip.warn { background: rgba(255, 84, 112, 0.3); border-color: rgba(255, 84, 112, 0.6); }
+    .chip[hidden] { display: none; }
+    .tools { display: flex; gap: 6px; }
+    .icon-btn {
+        width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--panel-border);
+        background: var(--panel); color: var(--text); font-size: 18px; cursor: pointer;
+        display: grid; place-items: center; transition: transform .1s, background .2s;
+    }
+    .icon-btn:hover { background: rgba(60, 70, 140, 0.7); }
+    .icon-btn:active { transform: scale(0.92); }
+    .icon-btn.off { opacity: 0.45; }
+
+    /* ---------- stage ---------- */
+    .stage {
+        position: relative; flex: 1; min-height: 260px;
+        border-radius: 22px; overflow: hidden;
+        border: 1px solid var(--panel-border);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 0 80px rgba(94, 234, 212, 0.04);
+        background: #060818;
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    .toast {
+        position: absolute; top: 14px; left: 50%; transform: translate(-50%, -20px);
+        background: rgba(10, 14, 40, 0.85); border: 1px solid var(--panel-border);
+        padding: 8px 16px; border-radius: 12px; font-size: 15px; max-width: 90%;
+        text-align: center; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .overlay {
+        position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+        background: rgba(4, 6, 18, 0.55); backdrop-filter: blur(6px);
+        opacity: 0; pointer-events: none; transition: opacity .3s;
+        overflow-y: auto;
+    }
+    .overlay.show { opacity: 1; pointer-events: auto; }
+    .card {
+        width: min(460px, 100%);
+        background: linear-gradient(180deg, rgba(30, 36, 84, 0.92), rgba(14, 18, 46, 0.94));
+        border: 1px solid var(--panel-border); border-radius: 22px;
+        padding: 24px; text-align: center;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+        transform: translateY(12px) scale(0.98); transition: transform .35s;
+    }
+    .overlay.show .card { transform: none; }
+    .card h2 { margin: 0 0 6px; font-size: 30px; font-weight: 900; }
+    .card .sub { color: var(--muted); margin: 0 0 18px; line-height: 1.5; }
+    .big-title {
+        font-size: clamp(34px, 8vw, 48px) !important;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--gold));
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .label { font-size: 13px; color: var(--muted); margin: 14px 0 6px; text-align: right; }
+    .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: rgba(0,0,0,.25); padding: 5px; border-radius: 14px; }
+    .seg button {
+        border: 0; border-radius: 10px; padding: 10px 6px; background: transparent; color: var(--muted);
+        font: inherit; font-weight: 500; cursor: pointer; transition: background .2s, color .2s;
+    }
+    .seg button small { display: block; font-size: 11px; opacity: .8; margin-top: 2px; }
+    .seg button.active { background: linear-gradient(135deg, rgba(94,234,212,.25), rgba(167,139,250,.3)); color: var(--text); }
+    .toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 4px; cursor: pointer; }
+    .switch { width: 46px; height: 26px; border-radius: 99px; background: rgba(255,255,255,.12); position: relative; transition: background .2s; flex: none; }
+    .switch::after { content: ''; position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: right .2s; }
+    .toggle input { display: none; }
+    .toggle input:checked + .switch { background: var(--accent); }
+    .toggle input:checked + .switch::after { right: 23px; }
+
+    .btn {
+        border: 0; border-radius: 14px; padding: 14px 20px; font: inherit; font-weight: 700; font-size: 18px;
+        cursor: pointer; color: #061018; width: 100%; margin-top: 10px;
+        background: linear-gradient(135deg, var(--accent), #7dd3fc);
+        box-shadow: 0 10px 30px rgba(94, 234, 212, 0.3);
+        transition: transform .1s, filter .2s;
+    }
+    .btn:hover { filter: brightness(1.1); }
+    .btn:active { transform: scale(0.97); }
+    .btn.ghost { background: rgba(255,255,255,.07); color: var(--text); box-shadow: none; border: 1px solid var(--panel-border); }
+    .row { display: flex; gap: 8px; }
+    .row .btn { flex: 1; }
+    .record { margin-top: 12px; color: var(--muted); font-size: 14px; }
+
+    .stars { font-size: 46px; letter-spacing: 6px; margin: 4px 0 10px; }
+    .stars span { display: inline-block; filter: grayscale(1) opacity(.3); transform: scale(.5); transition: transform .4s cubic-bezier(.3,1.8,.5,1), filter .3s; }
+    .stars span.on { filter: drop-shadow(0 0 12px rgba(255, 209, 102, .8)); transform: scale(1); }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 6px; }
+    .stat { background: rgba(0,0,0,.25); border-radius: 12px; padding: 10px; }
+    .stat small { display: block; color: var(--muted); font-size: 12px; }
+    .stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
+
+    .help { text-align: right; line-height: 1.7; font-size: 15px; }
+    .help ul { padding-inline-start: 20px; margin: 6px 0; }
+    kbd { background: rgba(255,255,255,.12); border-radius: 6px; padding: 1px 7px; font-family: inherit; font-size: 13px; border-bottom: 2px solid rgba(0,0,0,.4); }
+
+    /* ---------- controls ---------- */
+    .controls { display: flex; align-items: center; justify-content: center; gap: 22px; }
+    .dpad { direction: ltr; display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(2, 48px); gap: 6px; }
+    .dpad button, .action {
+        border: 1px solid var(--panel-border); background: var(--panel); color: var(--text);
+        border-radius: 14px; font-size: 22px; cursor: pointer; transition: transform .08s, background .2s;
+        backdrop-filter: blur(8px);
+    }
+    .dpad button:active, .action:active { transform: scale(0.9); background: rgba(94, 234, 212, .25); }
+    .dpad .up { grid-column: 2; grid-row: 1; }
+    .dpad .left { grid-column: 1; grid-row: 2; }
+    .dpad .down { grid-column: 2; grid-row: 2; }
+    .dpad .right { grid-column: 3; grid-row: 2; }
+    .actions { display: flex; gap: 8px; }
+    .action { height: 102px; width: 78px; font-size: 14px; font-family: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; position: relative; overflow: hidden; }
+    .action span { font-size: 26px; }
+    .action .cool { position: absolute; inset: auto 0 0 0; height: 0; background: rgba(94, 234, 212, .2); transition: height .1s linear; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    @media (max-width: 560px) {
+        .hud .chip { padding: 5px 9px; font-size: 13px; }
+        .icon-btn { width: 36px; height: 36px; font-size: 16px; }
+        .dpad { grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(2, 46px); }
+        .action { width: 66px; height: 98px; }
+        .controls { gap: 14px; }
+    }
+    @media (hover: hover) and (pointer: fine) and (min-height: 760px) {
+        .controls { opacity: .85; }
+    }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>ברוכים הבאים למבוך הקולי!</h1>
-        <p>בחרו את מצב המשחק:</p>
-        <button id="startGameTimed" class="btn btn-primary"><i class="fas fa-hourglass-start"></i> משחק עם הגבלת זמן</button>
-        <button id="startGameUntimed" class="btn btn-secondary"><i class="fas fa-infinity"></i> משחק ללא הגבלת זמן</button>
-        
-        <div class="controls">
-            <button id="moveUp" class="btn btn-primary"><i class="fas fa-arrow-up"></i></button>
-            <button id="moveLeft" class="btn btn-primary"><i class="fas fa-arrow-right"></i></button>
-            <button id="moveRight" class="btn btn-primary"><i class="fas fa-arrow-left"></i></button>
-            <button id="moveDown" class="btn btn-primary"><i class="fas fa-arrow-down"></i></button>
+<div class="app">
+    <header class="topbar">
+        <h1 class="brand">🌀 המבוך הקולי</h1>
+        <div class="hud" aria-live="off">
+            <div class="chip" id="chipLevel">שלב <b id="hudLevel">1</b></div>
+            <div class="chip" id="chipItems" hidden>💎 <b id="hudItems">0/0</b></div>
+            <div class="chip" id="chipTime">⏱️ <b id="hudTime">0:00</b></div>
+            <div class="chip" id="chipScore">✨ <b id="hudScore">0</b></div>
         </div>
-        
-        <button id="getPosition" class="btn btn-info"><i class="fas fa-map-marker-alt"></i> איפה אני?</button>
-        <button id="getInstructions" class="btn btn-info"><i class="fas fa-question-circle"></i> הוראות</button>
-        <button id="nextLevel" class="btn btn-secondary" style="display: none;"><i class="fas fa-forward"></i> שלב הבא</button>
+        <div class="tools">
+            <button class="icon-btn" id="btnSound" title="צלילים (M)" aria-label="צלילים">🔊</button>
+            <button class="icon-btn" id="btnSpeech" title="הקראה קולית (V)" aria-label="הקראה קולית">🗣️</button>
+            <button class="icon-btn" id="btnHelp" title="הוראות (H)" aria-label="הוראות">❔</button>
+            <button class="icon-btn" id="btnPause" title="השהיה (P)" aria-label="השהיה">⏸️</button>
+        </div>
+    </header>
 
-        <p id="levelInfo" style="font-size: 20px; font-weight: bold; color: #2c3e50;"></p>
-        <p id="itemsInfo" style="font-size: 18px; color: #e67e22;"></p>
-        <p id="status"></p>
-        <p id="time"></p>
-        <div id="maze-container"></div>
-    </div>
+    <main class="stage" id="stage">
+        <canvas id="game" aria-label="לוח המבוך"></canvas>
+        <div class="toast" id="toast"></div>
 
-    <script>
-        // מערכת שלבים - כל שלב עם מבוך ופריטים לאיסוף
-        const levels = [
-            {
-                maze: [
-                    [0, 0, 1, 0, 0],
-                    [1, 0, 1, 1, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 1, 1, 1, 0],
-                    [0, 0, 0, 1, 'G']
-                ],
-                collectibles: [], // שלב 1 ללא פריטים
-                description: 'שלב 1 - מבוך בסיסי'
-            },
-            {
-                maze: [
-                    [0, 0, 1, 0, 0, 0, 0],
-                    [0, 1, 1, 0, 1, 1, 0],
-                    [0, 0, 0, 0, 0, 0, 0],
-                    [1, 1, 0, 1, 1, 0, 1],
-                    [0, 0, 0, 0, 0, 0, 0],
-                    [0, 1, 1, 1, 0, 1, 0],
-                    [0, 0, 0, 0, 0, 0, 'G']
-                ],
-                collectibles: [
-                    {x: 3, y: 1, type: 'key', emoji: '🔑', name: 'מפתח', collected: false},
-                    {x: 4, y: 4, type: 'coin', emoji: '💰', name: 'מטבע', collected: false},
-                    {x: 1, y: 5, type: 'star', emoji: '⭐', name: 'כוכב', collected: false}
-                ],
-                description: 'שלב 2 - מבוך עם נקודות ציון (אסוף 3 פריטים)'
+        <!-- menu -->
+        <div class="overlay show" id="ovMenu">
+            <div class="card">
+                <h2 class="big-title">המבוך הקולי</h2>
+                <p class="sub">נווטו בחושך בעזרת אור, הד ושמיעה.<br>אספו את האוצרות, פתחו את הפורטל, וצאו מהמבוך.</p>
+
+                <div class="label">רמת ראייה</div>
+                <div class="seg" id="segDifficulty">
+                    <button data-v="easy">☀️ מואר<small>כל המבוך גלוי</small></button>
+                    <button data-v="normal">🔦 פנס<small>רואים רק סביבכם</small></button>
+                    <button data-v="blind">🌑 עיוור<small>רק שמיעה</small></button>
+                </div>
+
+                <label class="toggle"><span>⏱️ מרוץ נגד הזמן</span><input type="checkbox" id="optTimed"><span class="switch"></span></label>
+
+                <button class="btn" id="btnStart">▶ התחילו לשחק</button>
+                <div class="row">
+                    <button class="btn ghost" id="btnMenuHelp">❔ איך משחקים</button>
+                </div>
+                <div class="record" id="record"></div>
+            </div>
+        </div>
+
+        <!-- help -->
+        <div class="overlay" id="ovHelp">
+            <div class="card help">
+                <h2 style="text-align:center">איך משחקים</h2>
+                <ul>
+                    <li><b>תנועה:</b> חיצים / <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, כפתורי הכיוון או החלקה על המסך.</li>
+                    <li><b>הד (סונאר):</b> <kbd>רווח</kbd> – גל שחושף לרגע את הקירות, ומשמיע הד מכל כיוון: צליל מיידי = קיר צמוד, צליל מאוחר = מסדרון ארוך. גבוה = למעלה, נמוך = למטה, ימין/שמאל באוזניות.</li>
+                    <li><b>איפה אני:</b> <kbd>Q</kbd> – תיאור קולי של הכיוונים הפתוחים ושל המטרה הקרובה.</li>
+                    <li><b>משואה:</b> צפצוף קבוע שמגיע מהמטרה הבאה. ככל שהוא חזק יותר – אתם קרובים יותר. שווה לשחק עם אוזניות 🎧</li>
+                    <li><b>מטרה:</b> אספו את כל האוצרות כדי לפתוח את הפורטל 🌀, ואז היכנסו אליו.</li>
+                    <li><b>כוכבים:</b> מסלול קצר ומעט התנגשויות בקירות = יותר כוכבים ונקודות.</li>
+                    <li><kbd>P</kbd> השהיה · <kbd>M</kbd> צלילים · <kbd>V</kbd> הקראה · <kbd>B</kbd> משואה</li>
+                </ul>
+                <button class="btn" id="btnHelpClose">הבנתי</button>
+            </div>
+        </div>
+
+        <!-- pause -->
+        <div class="overlay" id="ovPause">
+            <div class="card">
+                <h2>⏸️ הפסקה</h2>
+                <p class="sub">המבוך מחכה לכם.</p>
+                <button class="btn" id="btnResume">▶ המשך</button>
+                <div class="row">
+                    <button class="btn ghost" id="btnRestart">↻ התחל שלב מחדש</button>
+                    <button class="btn ghost" id="btnQuit">🏠 תפריט</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- level complete -->
+        <div class="overlay" id="ovDone">
+            <div class="card">
+                <h2 id="doneTitle">כל הכבוד!</h2>
+                <div class="stars" id="doneStars"><span>⭐</span><span>⭐</span><span>⭐</span></div>
+                <div class="stats">
+                    <div class="stat"><small>זמן</small><b id="doneTime">0:00</b></div>
+                    <div class="stat"><small>צעדים / מסלול אופטימלי</small><b id="doneMoves">0</b></div>
+                    <div class="stat"><small>התנגשויות</small><b id="doneBumps">0</b></div>
+                    <div class="stat"><small>נקודות בשלב</small><b id="doneScore">0</b></div>
+                </div>
+                <button class="btn" id="btnNext">השלב הבא ←</button>
+                <div class="row">
+                    <button class="btn ghost" id="btnReplay">↻ שחק שוב בשלב</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- game over -->
+        <div class="overlay" id="ovOver">
+            <div class="card">
+                <h2>⌛ הזמן נגמר</h2>
+                <p class="sub" id="overSub"></p>
+                <button class="btn" id="btnRetry">↻ נסו שוב</button>
+                <div class="row">
+                    <button class="btn ghost" id="btnOverMenu">🏠 תפריט</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <nav class="controls" aria-label="שליטה">
+        <div class="actions">
+            <button class="action" id="btnPing" aria-label="הד"><span>📡</span>הד<i class="cool" id="pingCool"></i></button>
+            <button class="action" id="btnWhere" aria-label="איפה אני"><span>🧭</span>איפה אני</button>
+        </div>
+        <div class="dpad">
+            <button class="up" data-dir="up" aria-label="למעלה">▲</button>
+            <button class="left" data-dir="left" aria-label="שמאלה">◀</button>
+            <button class="down" data-dir="down" aria-label="למטה">▼</button>
+            <button class="right" data-dir="right" aria-label="ימינה">▶</button>
+        </div>
+    </nav>
+    <div class="sr-only" id="live" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+(() => {
+    'use strict';
+
+    // ===================================================================
+    //  הגדרות ותצורה
+    // ===================================================================
+    const $ = (s) => document.querySelector(s);
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+    const DIRS = {
+        up:    { dx: 0,  dy: -1, he: 'למעלה' },
+        right: { dx: 1,  dy: 0,  he: 'ימינה' },
+        down:  { dx: 0,  dy: 1,  he: 'למטה' },
+        left:  { dx: -1, dy: 0,  he: 'שמאלה' }
+    };
+    const ITEM_TYPES = [
+        { emoji: '🔑', name: 'מפתח',       color: '#ffd166' },
+        { emoji: '💎', name: 'יהלום',      color: '#6ee7ff' },
+        { emoji: '⭐', name: 'כוכב',       color: '#ffe066' },
+        { emoji: '💰', name: 'שק מטבעות',  color: '#f4b860' },
+        { emoji: '🍀', name: 'תלתן',       color: '#7dff9a' },
+        { emoji: '🎁', name: 'מתנה',       color: '#ff8fd1' }
+    ];
+    const MOVE_TIME = 0.11;      // שניות לאנימציית צעד
+    const PING_COOLDOWN = 2.2;
+    const BEACON_EVERY = 1.6;
+    const LIGHT_RADIUS = 2.8;
+
+    const storage = {
+        get(key, fallback) {
+            try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+            catch { return fallback; }
+        },
+        set(key, value) {
+            try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* אחסון חסום */ }
+        }
+    };
+
+    const settings = Object.assign(
+        { difficulty: 'normal', timed: false, sound: true, speech: true, beacon: true },
+        storage.get('maze.settings', {})
+    );
+    const saveSettings = () => storage.set('maze.settings', settings);
+
+    // ===================================================================
+    //  סאונד – הכול מסונתז ב-Web Audio, בלי קבצים חיצוניים
+    // ===================================================================
+    const Sfx = {
+        ctx: null, master: null, noiseBuf: null,
+        init() {
+            if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return;
+            this.ctx = new AC();
+            this.master = this.ctx.createGain();
+            this.master.gain.value = 0.7;
+            this.master.connect(this.ctx.destination);
+            const len = this.ctx.sampleRate * 0.5;
+            this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+            const data = this.noiseBuf.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+        },
+        out(pan) {
+            if (this.ctx.createStereoPanner) {
+                const p = this.ctx.createStereoPanner();
+                p.pan.value = clamp(pan, -1, 1);
+                p.connect(this.master);
+                return p;
             }
-        ];
+            return this.master;
+        },
+        tone({ freq, type = 'sine', dur = 0.15, vol = 0.2, pan = 0, attack = 0.005, slideTo = null, delay = 0 }) {
+            if (!settings.sound || !this.ctx) return;
+            const c = this.ctx, t = c.currentTime + delay;
+            const o = c.createOscillator(), g = c.createGain();
+            o.type = type;
+            o.frequency.setValueAtTime(freq, t);
+            if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(vol, t + attack);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            o.connect(g); g.connect(this.out(pan));
+            o.start(t); o.stop(t + dur + 0.05);
+        },
+        noise({ dur = 0.12, vol = 0.3, filter = 600, pan = 0, delay = 0 }) {
+            if (!settings.sound || !this.ctx) return;
+            const c = this.ctx, t = c.currentTime + delay;
+            const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+            src.buffer = this.noiseBuf;
+            f.type = 'lowpass'; f.frequency.value = filter;
+            g.gain.setValueAtTime(vol, t);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            src.connect(f); f.connect(g); g.connect(this.out(pan));
+            src.start(t); src.stop(t + dur + 0.05);
+        },
+        step(dx) { this.tone({ freq: 280 + Math.random() * 60, type: 'triangle', dur: 0.07, vol: 0.12, pan: dx * 0.4 }); },
+        bump(dx) {
+            this.noise({ dur: 0.14, vol: 0.5, filter: 380, pan: dx * 0.8 });
+            this.tone({ freq: 110, type: 'square', dur: 0.12, vol: 0.08, slideTo: 55, pan: dx * 0.8 });
+        },
+        collect() { [660, 880, 1320].forEach((f, i) => this.tone({ freq: f, dur: 0.18, vol: 0.18, delay: i * 0.07 })); },
+        unlock() { [523, 659, 784, 1046].forEach((f, i) => this.tone({ freq: f, type: 'triangle', dur: 0.3, vol: 0.16, delay: i * 0.09 })); },
+        locked() { this.tone({ freq: 220, type: 'sawtooth', dur: 0.2, vol: 0.08 }); this.tone({ freq: 196, type: 'sawtooth', dur: 0.25, vol: 0.08, delay: 0.15 }); },
+        ping() { this.tone({ freq: 1500, dur: 0.4, vol: 0.12, slideTo: 420 }); },
+        win() {
+            [523, 659, 784].forEach((f) => this.tone({ freq: f, type: 'triangle', dur: 0.9, vol: 0.12, attack: 0.03 }));
+            [1046, 1318, 1568].forEach((f, i) => this.tone({ freq: f, dur: 0.3, vol: 0.1, delay: 0.25 + i * 0.1 }));
+        },
+        lose() { [440, 370, 311, 262].forEach((f, i) => this.tone({ freq: f, type: 'triangle', dur: 0.35, vol: 0.14, delay: i * 0.18 })); },
+        tick() { this.tone({ freq: 1200, type: 'square', dur: 0.03, vol: 0.05 }); }
+    };
 
-        let currentLevel = 0;
-        let playerPosition = {x: 0, y: 0};
-        let timeLeft = 60;
-        let gameInterval;
-        let updateInterval;
-        let proximityInterval;
-        let isTimedMode = false;
-        let isGameStarted = false;
-        let collectedItems = [];
+    // ===================================================================
+    //  דיבור – קול עברי + הודעה על המסך + אזור aria-live לקוראי מסך
+    // ===================================================================
+    const Voice = {
+        voice: null,
+        init() {
+            if (!('speechSynthesis' in window)) return;
+            const pick = () => {
+                const vs = speechSynthesis.getVoices();
+                this.voice = vs.find((v) => /^(he|iw)/i.test(v.lang)) || null;
+            };
+            pick();
+            speechSynthesis.onvoiceschanged = pick;
+        },
+        say(text, interrupt = true) {
+            if (!settings.speech || !('speechSynthesis' in window)) return;
+            if (interrupt) speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'he-IL';
+            if (this.voice) u.voice = this.voice;
+            u.rate = 1.08;
+            speechSynthesis.speak(u);
+        },
+        stop() { if ('speechSynthesis' in window) speechSynthesis.cancel(); }
+    };
 
-        const startButtonTimed = document.getElementById('startGameTimed');
-        const startButtonUntimed = document.getElementById('startGameUntimed');
-        const positionButton = document.getElementById('getPosition');
-        const instructionsButton = document.getElementById('getInstructions');
-        const nextLevelButton = document.getElementById('nextLevel');
-        const statusElement = document.getElementById('status');
-        const timeElement = document.getElementById('time');
-        const mazeContainer = document.getElementById('maze-container');
-        const levelInfoElement = document.getElementById('levelInfo');
-        const itemsInfoElement = document.getElementById('itemsInfo');
-
-        startButtonTimed.addEventListener('click', () => startGame(true));
-        startButtonUntimed.addEventListener('click', () => startGame(false));
-        positionButton.addEventListener('click', announcePosition);
-        instructionsButton.addEventListener('click', announceInstructions);
-        nextLevelButton.addEventListener('click', goToNextLevel);
-
-        document.getElementById('moveUp').addEventListener('click', () => move('up'));
-        document.getElementById('moveDown').addEventListener('click', () => move('down'));
-        document.getElementById('moveLeft').addEventListener('click', () => move('right'));
-        document.getElementById('moveRight').addEventListener('click', () => move('left'));
-
-        function startGame(timed) {
-            playerPosition = {x: 0, y: 0};
-            isTimedMode = timed;
-            isGameStarted = true;
-            collectedItems = [];
-            nextLevelButton.style.display = 'none';
-
-            // איפוס פריטים לאיסוף
-            levels[currentLevel].collectibles.forEach(item => item.collected = false);
-
-            if (timed) {
-                timeLeft = 60;
-                timeElement.style.display = 'block';
-                gameInterval = setInterval(updateGame, 1000);
-                speak(`${levels[currentLevel].description}. המשחק התחיל במצב מוגבל זמן! יש לך 60 שניות.`);
-            } else {
-                timeElement.style.display = 'none';
-                speak(`${levels[currentLevel].description}. המשחק התחיל במצב ללא הגבלת זמן. קח את הזמן שלך.`);
-            }
-            updateInterval = setInterval(updateStatus, 10000);
-            proximityInterval = setInterval(checkItemProximity, 3000);
-            document.addEventListener('keydown', handleKeyPress);
-            updateLevelInfo();
-            renderMaze();
+    let toastTimer = 0;
+    function announce(text, { interrupt = true, speak = true, toast = true } = {}) {
+        if (toast) {
+            const el = $('#toast');
+            el.textContent = text;
+            el.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
         }
+        $('#live').textContent = text;
+        if (speak) Voice.say(text, interrupt);
+    }
 
-        function handleKeyPress(event) {
-            if (!isGameStarted) return;
-            
-            const key = event.key.toLowerCase();
-            if (key === 'arrowup' || key === 'w') move('up');
-            else if (key === 'arrowdown' || key === 's') move('down');
-            else if (key === 'arrowright' || key === 'd') move('left');
-            else if (key === 'arrowleft' || key === 'a') move('right');
-        }
-
-        function updateGame() {
-            if (isTimedMode) {
-                timeLeft--;
-                timeElement.textContent = `זמן נותר: ${timeLeft} שניות`;
-                if (timeLeft <= 0) {
-                    endGame('הזמן נגמר! המשחק נגמר.');
-                }
-            }
-        }
-
-        function updateStatus() {
-            const surroundings = getSurroundings();
-            speak(surroundings);
-        }
-
-        function move(direction) {
-            let newX = playerPosition.x;
-            let newY = playerPosition.y;
-
-            if (direction === 'up') newY--;
-            else if (direction === 'down') newY++;
-            else if (direction === 'left') newX--;
-            else if (direction === 'right') newX++;
-
-            if (isValidMove(newX, newY)) {
-                playerPosition.x = newX;
-                playerPosition.y = newY;
-                checkForCollectible();
-                checkPosition();
-                playMoveSound();
-                speak(`זזת ${getDirectionName(direction)}`, true);
-                renderMaze();
-            } else {
-                playBlockedSound();
-                speak(`לא ניתן לזוז ${getDirectionName(direction)}, יש קיר`, true);
-            }
-        }
-
-        function getDirectionName(direction) {
-            switch(direction) {
-                case 'up': return 'למעלה';
-                case 'down': return 'למטה';
-                case 'left': return 'ימינה';
-                case 'right': return 'שמאלה';
-            }
-        }
-
-        function isValidMove(x, y) {
-            const currentMaze = levels[currentLevel].maze;
-            const mazeSize = currentMaze.length;
-            return x >= 0 && x < mazeSize && y >= 0 && y < mazeSize && currentMaze[y][x] !== 1;
-        }
-
-        function checkPosition() {
-            const currentMaze = levels[currentLevel].maze;
-            if (currentMaze[playerPosition.y][playerPosition.x] === 'G') {
-                // בשלב 2, צריך לאסוף את כל הפריטים לפני הניצחון
-                const totalItems = levels[currentLevel].collectibles.length;
-                if (totalItems > 0 && collectedItems.length < totalItems) {
-                    speak(`הגעת ליעד, אבל עדיין לא אספת את כל הפריטים! אספת ${collectedItems.length} מתוך ${totalItems}.`, true);
-                    return;
-                }
-                setTimeout(() => {
-                    endGameWithDelay();
-                }, 1000);
-            }
-        }
-
-        function getSurroundings() {
-            const currentMaze = levels[currentLevel].maze;
-            const mazeSize = currentMaze.length;
-            let message = 'סביבך: ';
-            if (playerPosition.y > 0 && currentMaze[playerPosition.y - 1][playerPosition.x] !== 1) message += 'פתוח למעלה. ';
-            if (playerPosition.y < mazeSize - 1 && currentMaze[playerPosition.y + 1][playerPosition.x] !== 1) message += 'פתוח למטה. ';
-            if (playerPosition.x < mazeSize - 1 && currentMaze[playerPosition.y][playerPosition.x + 1] !== 1) message += 'פתוח משמאל. ';
-            if (playerPosition.x > 0 && currentMaze[playerPosition.y][playerPosition.x - 1] !== 1) message += 'פתוח מימין. ';
-            return message;
-        }
-
-        function announcePosition() {
-            const x = playerPosition.x + 1;
-            const y = playerPosition.y + 1;
-            speak(`אתה נמצא בעמודה ${x}, שורה ${y}.`, true);
-        }
-
-        function announceInstructions() {
-            speak('השתמש בכפתורים או במקשים הבאים לתנועה: למעלה - מקש למעלה או W, למטה - מקש למטה או S, שמאלה - מקש שמאלה או A, ימינה - מקש ימינה או D. לחץ על כפתור "איפה אני?" כדי לשמוע את מיקומך הנוכחי.', true);
-        }
-
-        function endGameWithDelay() {
-            isGameStarted = false;
-            clearInterval(gameInterval);
-            clearInterval(updateInterval);
-            clearInterval(proximityInterval);
-            document.removeEventListener('keydown', handleKeyPress);
-
-            let message = 'כל הכבוד! הגעת ליעד!';
-
-            // אם יש עוד שלבים
-            if (currentLevel < levels.length - 1) {
-                message += ' לחץ על "שלב הבא" להמשיך.';
-                nextLevelButton.style.display = 'inline-block';
-            } else {
-                message += ' סיימת את כל השלבים!';
-            }
-
-            statusElement.textContent = message;
-            speak(message, true);
-        }
-
-        function endGame(message) {
-            isGameStarted = false;
-            clearInterval(gameInterval);
-            clearInterval(updateInterval);
-            clearInterval(proximityInterval);
-            document.removeEventListener('keydown', handleKeyPress);
-            statusElement.textContent = message;
-            speak(message, true);
-        }
-
-        function speak(text, interrupt = false) {
-            if (interrupt) {
-                window.speechSynthesis.cancel();
-            }
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'he-IL';
-            window.speechSynthesis.speak(utterance);
-        }
-
-        function playMoveSound() {
-            const audio = new Audio('https://example.com/move-sound.mp3');
-            audio.play();
-        }
-
-        function playBlockedSound() {
-            const audio = new Audio('https://example.com/blocked-sound.mp3');
-            audio.play();
-        }
-
-        function renderMaze() {
-            const currentMaze = levels[currentLevel].maze;
-            const collectibles = levels[currentLevel].collectibles;
-
-            mazeContainer.innerHTML = '';
-            const table = document.createElement('table');
-            for (let y = 0; y < currentMaze.length; y++) {
-                const row = document.createElement('tr');
-                for (let x = 0; x < currentMaze[y].length; x++) {
-                    const cell = document.createElement('td');
-
-                    // בדיקה אם השחקן נמצא כאן
-                    if (x === playerPosition.x && y === playerPosition.y) {
-                        cell.textContent = '😊';
-                        cell.className = 'player';
-                    }
-                    // בדיקה אם יש פריט שלא נאסף כאן
-                    else {
-                        const collectible = collectibles.find(item =>
-                            item.x === x && item.y === y && !item.collected
-                        );
-                        if (collectible) {
-                            cell.textContent = collectible.emoji;
-                            cell.style.backgroundColor = '#f1c40f';
-                        } else if (currentMaze[y][x] === 1) {
-                            cell.className = 'wall';
-                        } else if (currentMaze[y][x] === 'G') {
-                            cell.textContent = '🏁';
-                            cell.className = 'goal';
-                        }
-                    }
-                    row.appendChild(cell);
-                }
-                table.appendChild(row);
-            }
-            mazeContainer.appendChild(table);
-        }
-
-        // פונקציה לבדיקת איסוף פריט
-        function checkForCollectible() {
-            const collectibles = levels[currentLevel].collectibles;
-            const item = collectibles.find(item =>
-                item.x === playerPosition.x &&
-                item.y === playerPosition.y &&
-                !item.collected
-            );
-
-            if (item) {
-                item.collected = true;
-                collectedItems.push(item);
-                speak(`מצאת ${item.name}! אספת ${collectedItems.length} מתוך ${collectibles.length} פריטים.`, true);
-                updateLevelInfo();
-            }
-        }
-
-        // פונקציה לבדיקת קרבה לפריטים
-        function checkItemProximity() {
-            if (!isGameStarted) return;
-
-            const collectibles = levels[currentLevel].collectibles;
-            const uncollectedItems = collectibles.filter(item => !item.collected);
-
-            if (uncollectedItems.length === 0) return;
-
-            // מצא את הפריט הקרוב ביותר
-            let closestItem = null;
-            let minDistance = Infinity;
-
-            uncollectedItems.forEach(item => {
-                const distance = Math.abs(item.x - playerPosition.x) +
-                               Math.abs(item.y - playerPosition.y);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestItem = item;
-                }
+    // ===================================================================
+    //  יצירת מבוכים
+    // ===================================================================
+    function generateMaze(cw, ch, braid) {
+        const w = cw * 2 + 1, h = ch * 2 + 1;
+        const grid = Array.from({ length: h }, () => Array(w).fill(1));
+        const seen = Array.from({ length: ch }, () => Array(cw).fill(false));
+        const stack = [[0, 0]];
+        seen[0][0] = true;
+        grid[1][1] = 0;
+        const steps = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        while (stack.length) {
+            const [cx, cy] = stack[stack.length - 1];
+            const options = steps.filter(([dx, dy]) => {
+                const nx = cx + dx, ny = cy + dy;
+                return nx >= 0 && ny >= 0 && nx < cw && ny < ch && !seen[ny][nx];
             });
+            if (!options.length) { stack.pop(); continue; }
+            const [dx, dy] = options[Math.floor(Math.random() * options.length)];
+            const nx = cx + dx, ny = cy + dy;
+            grid[cy * 2 + 1 + dy][cx * 2 + 1 + dx] = 0;
+            grid[ny * 2 + 1][nx * 2 + 1] = 0;
+            seen[ny][nx] = true;
+            stack.push([nx, ny]);
+        }
+        // פתיחת כמה קירות פנימיים יוצרת לולאות – מבוך פחות ליניארי ומעניין יותר
+        let extra = Math.floor(cw * ch * braid);
+        for (let tries = 0; extra > 0 && tries < 2000; tries++) {
+            const x = 1 + Math.floor(Math.random() * (w - 2));
+            const y = 1 + Math.floor(Math.random() * (h - 2));
+            if (grid[y][x] !== 1) continue;
+            const horiz = x % 2 === 0 && y % 2 === 1;
+            const vert = x % 2 === 1 && y % 2 === 0;
+            if (horiz || vert) { grid[y][x] = 0; extra--; }
+        }
+        return { w, h, grid };
+    }
 
-            // אם קרוב מאוד (1-2 צעדים)
-            if (minDistance === 1) {
-                const direction = getDirectionToItem(closestItem);
-                speak(`${closestItem.name} ממש לידך - ${direction}!`);
-            } else if (minDistance === 2) {
-                speak(`${closestItem.name} קרוב אליך, כ-2 צעדים.`);
+    function bfs(lv, sx, sy) {
+        const dist = Array.from({ length: lv.h }, () => Array(lv.w).fill(-1));
+        const q = [[sx, sy]];
+        dist[sy][sx] = 0;
+        for (let i = 0; i < q.length; i++) {
+            const [x, y] = q[i];
+            for (const d of Object.values(DIRS)) {
+                const nx = x + d.dx, ny = y + d.dy;
+                if (lv.grid[ny]?.[nx] === 0 && dist[ny][nx] < 0) {
+                    dist[ny][nx] = dist[y][x] + 1;
+                    q.push([nx, ny]);
+                }
+            }
+        }
+        return dist;
+    }
+
+    function buildLevel(n) {
+        const rooms = Math.min(4 + n, 13);
+        const lv = generateMaze(rooms, rooms, n === 0 ? 0.04 : 0.1);
+        lv.n = n;
+        lv.start = { x: 1, y: 1 };
+        lv.goal = { x: lv.w - 2, y: lv.h - 2 };
+
+        const itemCount = n === 0 ? 0 : Math.min(n + 2, 6);
+        const fromStart = bfs(lv, 1, 1);
+        const cells = [];
+        for (let y = 1; y < lv.h - 1; y++) {
+            for (let x = 1; x < lv.w - 1; x++) {
+                if (lv.grid[y][x] !== 0 || fromStart[y][x] < 4) continue;
+                if (x === lv.goal.x && y === lv.goal.y) continue;
+                const walls = Object.values(DIRS).filter((d) => lv.grid[y + d.dy][x + d.dx] === 1).length;
+                cells.push({ x, y, deadEnd: walls === 3, r: Math.random() });
+            }
+        }
+        // עדיפות לקצוות מבוי סתום – שם הכי מתגמל למצוא אוצר
+        cells.sort((a, b) => (b.deadEnd - a.deadEnd) || (a.r - b.r));
+        lv.items = [];
+        for (const minGap of [5, 3, 1]) {
+            for (const c of cells) {
+                if (lv.items.length >= itemCount) break;
+                if (lv.items.some((it) => Math.abs(it.x - c.x) + Math.abs(it.y - c.y) < minGap)) continue;
+                const type = ITEM_TYPES[lv.items.length % ITEM_TYPES.length];
+                lv.items.push({ x: c.x, y: c.y, ...type, collected: false, phase: Math.random() * 6 });
             }
         }
 
-        // פונקציה למציאת כיוון לפריט
-        function getDirectionToItem(item) {
-            const dx = item.x - playerPosition.x;
-            const dy = item.y - playerPosition.y;
+        // מסלול "אופטימלי" משוער: השכן הקרוב ביותר בין אוצרות ואז ליעד
+        let par = 0, cur = lv.start;
+        const left = [...lv.items];
+        while (left.length) {
+            const d = bfs(lv, cur.x, cur.y);
+            left.sort((a, b) => d[a.y][a.x] - d[b.y][b.x]);
+            const next = left.shift();
+            par += d[next.y][next.x];
+            cur = next;
+        }
+        par += bfs(lv, cur.x, cur.y)[lv.goal.y][lv.goal.x];
+        lv.par = par;
 
-            if (Math.abs(dx) > Math.abs(dy)) {
-                return dx > 0 ? 'משמאל' : 'מימין';
+        const mult = { easy: 0.45, normal: 0.75, blind: 1.6 }[settings.difficulty];
+        lv.timeLimit = Math.ceil(15 + par * mult + lv.items.length * 5);
+
+        const size = lv.w * lv.h;
+        lv.reveal = new Float32Array(size);
+        lv.known = new Uint8Array(size);
+        lv.visited = new Uint8Array(size);
+        return lv;
+    }
+
+    // ===================================================================
+    //  מצב המשחק
+    // ===================================================================
+    const canvas = $('#game');
+    const ctx = canvas.getContext('2d');
+    let dpr = 1;
+
+    let state = 'menu';
+    let level = null;
+    let levelNum = 0;
+    let totalScore = 0;
+    let scoreAtLevelStart = 0;
+    const player = { x: 1, y: 1, fx: 1, fy: 1, rx: 1, ry: 1, t: 1, dir: 'right', bump: 0, bumpDx: 0, bumpDy: 0 };
+    let queued = null;
+    let stats = { moves: 0, bumps: 0, elapsed: 0 };
+    let pings = [];
+    let particles = [];
+    let pingCooldown = 0;
+    let beaconTimer = 0;
+    let lastTick = -1;
+    let shake = 0;
+    let flash = 0;
+    let goalPulse = 0;
+    let winAnim = 0;
+    let lockedNotified = false;
+    let time = 0;
+
+    const best = storage.get('maze.best', { level: 0, score: 0 });
+
+    const idx = (x, y) => y * level.w + x;
+    const isOpen = (x, y) => level.grid[y]?.[x] === 0;
+    const remainingItems = () => level.items.filter((i) => !i.collected);
+    const goalOpen = () => remainingItems().length === 0;
+
+    function startLevel(n, keepScore = true) {
+        levelNum = n;
+        if (!keepScore) totalScore = 0;
+        scoreAtLevelStart = totalScore;
+        level = buildLevel(n);
+        Object.assign(player, { x: 1, y: 1, fx: 1, fy: 1, rx: 1, ry: 1, t: 1, dir: 'right', bump: 0 });
+        queued = null;
+        stats = { moves: 0, bumps: 0, elapsed: 0 };
+        pings = []; particles = [];
+        pingCooldown = 0; beaconTimer = 0.8; lastTick = -1;
+        winAnim = 0; lockedNotified = false;
+        markKnown();
+        level.visited[idx(1, 1)] = 1;
+        // הצצה קצרה על כל המבוך בתחילת שלב במצב פנס
+        if (settings.difficulty === 'normal') level.reveal.fill(1.6);
+        state = 'playing';
+        showOverlay(null);
+        updateHud();
+
+        const items = level.items.length;
+        let msg = `שלב ${n + 1}. `;
+        msg += items ? `אספו ${items} אוצרות כדי לפתוח את הפורטל, ואז צאו מהמבוך.` : 'מצאו את הפורטל בפינה הרחוקה.';
+        if (settings.timed) msg += ` יש לכם ${level.timeLimit} שניות.`;
+        announce(msg);
+    }
+
+    function markKnown() {
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                const x = player.x + dx, y = player.y + dy;
+                if (x >= 0 && y >= 0 && x < level.w && y < level.h) level.known[idx(x, y)] = 1;
+            }
+        }
+    }
+
+    function tryMove(dirName) {
+        if (state !== 'playing') return;
+        if (player.t < 1) { queued = dirName; return; }
+        const d = DIRS[dirName];
+        player.dir = dirName;
+        const nx = player.x + d.dx, ny = player.y + d.dy;
+        if (!isOpen(nx, ny)) {
+            stats.bumps++;
+            player.bump = 1; player.bumpDx = d.dx; player.bumpDy = d.dy;
+            shake = 0.25; flash = 0.35;
+            if (level.grid[ny]?.[nx] === 1) level.reveal[idx(nx, ny)] = 1.4;
+            Sfx.bump(d.dx);
+            if (settings.difficulty === 'blind') announce(`קיר ${d.he}`, { toast: false });
+            return;
+        }
+        player.fx = player.x; player.fy = player.y;
+        player.x = nx; player.y = ny;
+        player.t = 0;
+        stats.moves++;
+        level.visited[idx(nx, ny)] = 1;
+        markKnown();
+        Sfx.step(d.dx);
+        spawnParticles(player.fx + 0.5, player.fy + 0.5, 2, '#5eead4', 0.6, 0.35);
+        onArrive();
+    }
+
+    function onArrive() {
+        const item = level.items.find((i) => !i.collected && i.x === player.x && i.y === player.y);
+        if (item) {
+            item.collected = true;
+            totalScore += 50;
+            spawnParticles(item.x + 0.5, item.y + 0.5, 28, item.color, 3.2, 0.9);
+            Sfx.collect();
+            const left = remainingItems().length;
+            if (left === 0) {
+                setTimeout(() => Sfx.unlock(), 250);
+                goalPulse = 1;
+                announce(`מצאתם ${item.name}! כל האוצרות נאספו – הפורטל נפתח!`);
             } else {
-                return dy > 0 ? 'למטה' : 'למעלה';
+                announce(`מצאתם ${item.name}! נותרו ${left}.`);
+            }
+            popChip('#chipItems');
+            updateHud();
+        }
+
+        const atGoal = player.x === level.goal.x && player.y === level.goal.y;
+        if (atGoal) {
+            if (goalOpen()) {
+                completeLevel();
+            } else if (!lockedNotified) {
+                lockedNotified = true;
+                Sfx.locked();
+                announce(`הפורטל נעול. חסרים עוד ${remainingItems().length} אוצרות.`);
+            }
+        } else {
+            lockedNotified = false;
+        }
+    }
+
+    function completeLevel() {
+        state = 'winning';
+        winAnim = 0;
+        queued = null;
+        Sfx.win();
+        spawnParticles(level.goal.x + 0.5, level.goal.y + 0.5, 60, '#3dffa2', 4.5, 1.3);
+
+        const ratio = stats.moves / Math.max(1, level.par);
+        let stars = 1;
+        if (ratio <= 2.2 && stats.bumps <= 8) stars = 2;
+        if (ratio <= 1.35 && stats.bumps <= 3) stars = 3;
+        const timeBonus = settings.timed ? Math.max(0, Math.round(level.timeLimit - stats.elapsed)) * 5 : 0;
+        const diffMult = { easy: 1, normal: 1.5, blind: 2.5 }[settings.difficulty];
+        const gained = Math.max(10, Math.round((100 + levelNum * 40 + stars * 50 + timeBonus - stats.bumps * 5) * diffMult));
+        totalScore += gained;
+
+        if (levelNum + 1 > best.level || totalScore > best.score) {
+            best.level = Math.max(best.level, levelNum + 1);
+            best.score = Math.max(best.score, totalScore);
+            storage.set('maze.best', best);
+        }
+
+        setTimeout(() => {
+            state = 'done';
+            $('#doneTitle').textContent = ['יצאתם בשלום!', 'יפה מאוד!', 'מושלם!'][stars - 1];
+            $('#doneTime').textContent = fmtTime(stats.elapsed);
+            $('#doneMoves').textContent = `${stats.moves} / ${level.par}`;
+            $('#doneBumps').textContent = stats.bumps;
+            $('#doneScore').textContent = `+${gained}`;
+            const starEls = document.querySelectorAll('#doneStars span');
+            starEls.forEach((s) => s.classList.remove('on'));
+            starEls.forEach((s, i) => { if (i < stars) setTimeout(() => s.classList.add('on'), 250 + i * 220); });
+            showOverlay('#ovDone');
+            updateHud();
+            announce(`יצאתם מהמבוך! ${stars} כוכבים, ${gained} נקודות. לחצו אנטר לשלב הבא.`, { toast: false });
+        }, 900);
+    }
+
+    function gameOver() {
+        state = 'over';
+        Sfx.lose();
+        totalScore = scoreAtLevelStart;
+        $('#overSub').textContent = `שלב ${levelNum + 1} · אספתם ${level.items.length - remainingItems().length} מתוך ${level.items.length} אוצרות`;
+        showOverlay('#ovOver');
+        updateHud();
+        announce('הזמן נגמר! לחצו אנטר כדי לנסות שוב.', { toast: false });
+    }
+
+    function sonar() {
+        if (state !== 'playing' || pingCooldown > 0) return;
+        pingCooldown = PING_COOLDOWN;
+        pings.push({ x: player.x + 0.5, y: player.y + 0.5, r: 0, max: settings.difficulty === 'normal' ? 11 : 7 });
+        Sfx.ping();
+        // הד מכל כיוון: השהיה ביחס לאורך המסדרון
+        for (const [name, d] of Object.entries(DIRS)) {
+            let n = 0;
+            while (isOpen(player.x + d.dx * (n + 1), player.y + d.dy * (n + 1))) n++;
+            const freq = name === 'up' ? 1100 : name === 'down' ? 480 : 740;
+            Sfx.tone({ freq, dur: 0.07, vol: n === 0 ? 0.16 : 0.1, pan: d.dx * 0.9, delay: 0.3 + n * 0.08 });
+        }
+    }
+
+    function relDir(t) {
+        const dx = t.x - player.x, dy = t.y - player.y;
+        const parts = [];
+        if (dy < 0) parts.push('למעלה');
+        if (dy > 0) parts.push('למטה');
+        if (dx > 0) parts.push('ימינה');
+        if (dx < 0) parts.push('שמאלה');
+        return `${parts.join(' ו')}, במרחק ${Math.abs(dx) + Math.abs(dy)} משבצות בקו אווירי`;
+    }
+
+    function listHe(arr) {
+        return arr.length < 2 ? arr.join('') : `${arr.slice(0, -1).join(', ')} ו${arr[arr.length - 1]}`;
+    }
+
+    function whereAmI() {
+        if (state !== 'playing') return;
+        const open = [], walls = [];
+        for (const d of Object.values(DIRS)) (isOpen(player.x + d.dx, player.y + d.dy) ? open : walls).push(d.he);
+        let msg = '';
+        if (open.length) msg += `פתוח ${listHe(open)}. `;
+        if (walls.length) msg += `קיר ${listHe(walls)}. `;
+        const target = nearestTarget();
+        msg += goalOpen() ? `הפורטל פתוח: ${relDir(target)}.` : `${target.name} הקרוב: ${relDir(target)}.`;
+        announce(msg);
+    }
+
+    function nearestTarget() {
+        const items = remainingItems();
+        if (!items.length) return { ...level.goal, name: 'הפורטל' };
+        return items.reduce((a, b) =>
+            (Math.hypot(a.x - player.x, a.y - player.y) <= Math.hypot(b.x - player.x, b.y - player.y) ? a : b));
+    }
+
+    function beacon() {
+        const t = nearestTarget();
+        const dx = t.x - player.x, dy = t.y - player.y;
+        const dist = Math.hypot(dx, dy);
+        const maxD = Math.hypot(level.w, level.h);
+        const vol = 0.025 + 0.16 * Math.pow(1 - clamp(dist / maxD, 0, 1), 2.2);
+        const isGoal = goalOpen();
+        const base = isGoal ? 523 : 880;
+        const freq = base * (dy < 0 ? 1.12 : dy > 0 ? 0.89 : 1);
+        Sfx.tone({ freq, type: isGoal ? 'triangle' : 'sine', dur: 0.18, vol, pan: clamp(dx / 5, -1, 1) });
+        if (dist < 4) Sfx.tone({ freq: freq * 1.5, dur: 0.12, vol: vol * 0.7, pan: clamp(dx / 5, -1, 1), delay: 0.12 });
+    }
+
+    function spawnParticles(x, y, count, color, speed, life) {
+        for (let i = 0; i < count; i++) {
+            const a = Math.random() * Math.PI * 2, s = speed * (0.3 + Math.random() * 0.7);
+            particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: life * (0.6 + Math.random() * 0.4), max: life, color, size: 0.04 + Math.random() * 0.06 });
+        }
+    }
+
+    // ===================================================================
+    //  לולאת עדכון
+    // ===================================================================
+    function update(dt) {
+        time += dt;
+        shake = Math.max(0, shake - dt);
+        flash = Math.max(0, flash - dt * 1.5);
+        goalPulse = Math.max(0, goalPulse - dt * 0.6);
+        player.bump = Math.max(0, player.bump - dt * 5);
+
+        for (const p of particles) {
+            p.x += p.vx * dt; p.y += p.vy * dt;
+            p.vx *= 0.94; p.vy *= 0.94;
+            p.life -= dt;
+        }
+        particles = particles.filter((p) => p.life > 0);
+
+        if (!level) return;
+
+        if (player.t < 1) {
+            player.t = Math.min(1, player.t + dt / MOVE_TIME);
+            const e = easeOut(player.t);
+            player.rx = lerp(player.fx, player.x, e);
+            player.ry = lerp(player.fy, player.y, e);
+            if (player.t >= 1 && queued) { const q = queued; queued = null; tryMove(q); }
+        }
+
+        const decay = settings.difficulty === 'blind' ? 0.8 : 0.45;
+        for (let i = 0; i < level.reveal.length; i++) {
+            if (level.reveal[i] > 0) level.reveal[i] = Math.max(0, level.reveal[i] - dt * decay);
+        }
+
+        for (const p of pings) {
+            p.r += dt * 9;
+            if (settings.difficulty === 'blind') continue;
+            const y0 = Math.max(0, Math.floor(p.y - p.r - 1)), y1 = Math.min(level.h - 1, Math.ceil(p.y + p.r + 1));
+            const x0 = Math.max(0, Math.floor(p.x - p.r - 1)), x1 = Math.min(level.w - 1, Math.ceil(p.x + p.r + 1));
+            for (let y = y0; y <= y1; y++) {
+                for (let x = x0; x <= x1; x++) {
+                    const d = Math.hypot(x + 0.5 - p.x, y + 0.5 - p.y);
+                    if (d <= p.r && d > p.r - 1.2) {
+                        const strength = 1.3 * (1 - p.r / p.max) + 0.2;
+                        const i = idx(x, y);
+                        if (strength > level.reveal[i]) level.reveal[i] = strength;
+                    }
+                }
+            }
+        }
+        pings = pings.filter((p) => p.r < p.max);
+
+        if (state === 'winning') winAnim = Math.min(1, winAnim + dt * 1.2);
+
+        if (state !== 'playing') return;
+        stats.elapsed += dt;
+        pingCooldown = Math.max(0, pingCooldown - dt);
+
+        if (settings.beacon) {
+            beaconTimer -= dt;
+            if (beaconTimer <= 0) { beaconTimer = BEACON_EVERY; beacon(); }
+        }
+
+        if (settings.timed) {
+            const remaining = level.timeLimit - stats.elapsed;
+            const sec = Math.ceil(remaining);
+            if (sec <= 10 && sec !== lastTick && sec > 0) { lastTick = sec; Sfx.tick(); if (sec === 10) announce('נותרו 10 שניות!', { interrupt: false }); }
+            if (remaining <= 0) gameOver();
+        }
+    }
+
+    // ===================================================================
+    //  ציור
+    // ===================================================================
+    function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(canvas.clientWidth * dpr);
+        canvas.height = Math.round(canvas.clientHeight * dpr);
+    }
+
+    function roundRect(x, y, w, h, r) {
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+        else ctx.rect(x, y, w, h);
+    }
+
+    function draw() {
+        const W = canvas.clientWidth, H = canvas.clientHeight;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.direction = 'ltr';
+        ctx.globalAlpha = 1;
+
+        const bg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
+        bg.addColorStop(0, '#0d1236');
+        bg.addColorStop(1, '#04050f');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+        drawStars(W, H);
+
+        if (!level) return;
+        const mode = settings.difficulty;
+        const inMenu = state === 'menu';
+        const cs = Math.floor(Math.min((W - 20) / level.w, (H - 20) / level.h));
+        const sx = shake > 0 ? (Math.random() - 0.5) * shake * 24 : 0;
+        const sy = shake > 0 ? (Math.random() - 0.5) * shake * 24 : 0;
+        const ox = Math.floor((W - cs * level.w) / 2 + sx);
+        const oy = Math.floor((H - cs * level.h) / 2 + sy);
+        const pcx = player.rx + 0.5, pcy = player.ry + 0.5;
+
+        const visAt = (x, y) => {
+            if (inMenu) return 0.22;
+            if (mode === 'easy') return 1;
+            const r = level.reveal[idx(x, y)];
+            if (mode === 'blind') return Math.min(1, r) * 0.8;
+            const d = Math.hypot(x + 0.5 - pcx, y + 0.5 - pcy);
+            const light = clamp(1 - (d - 0.6) / LIGHT_RADIUS, 0, 1);
+            const known = level.known[idx(x, y)] ? 0.22 : 0;
+            return clamp(Math.max(light, Math.min(1, r) * 0.85, known), 0, 1);
+        };
+
+        // רצפה ופירורי לחם
+        for (let y = 0; y < level.h; y++) {
+            for (let x = 0; x < level.w; x++) {
+                if (level.grid[y][x] !== 0) continue;
+                const v = visAt(x, y);
+                const visited = level.visited[idx(x, y)];
+                if (v > 0.02) {
+                    ctx.globalAlpha = v * 0.5;
+                    ctx.fillStyle = '#131a46';
+                    ctx.fillRect(ox + x * cs, oy + y * cs, cs, cs);
+                }
+                if (visited && !inMenu) {
+                    ctx.globalAlpha = mode === 'blind' ? 0.25 : Math.max(0.18, v * 0.6);
+                    ctx.fillStyle = '#5eead4';
+                    ctx.beginPath();
+                    ctx.arc(ox + (x + 0.5) * cs, oy + (y + 0.5) * cs, Math.max(1.5, cs * 0.07), 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
         }
 
-        // עדכון מידע על השלב והפריטים
-        function updateLevelInfo() {
-            levelInfoElement.textContent = `שלב ${currentLevel + 1} מתוך ${levels.length}`;
-
-            const totalItems = levels[currentLevel].collectibles.length;
-            if (totalItems > 0) {
-                itemsInfoElement.textContent = `פריטים: ${collectedItems.length}/${totalItems}`;
-            } else {
-                itemsInfoElement.textContent = '';
+        // קירות
+        const inset = Math.max(1, cs * 0.06);
+        ctx.lineWidth = Math.max(1, cs * 0.05);
+        for (let y = 0; y < level.h; y++) {
+            for (let x = 0; x < level.w; x++) {
+                if (level.grid[y][x] !== 1) continue;
+                const v = visAt(x, y);
+                if (v < 0.02) continue;
+                const px = ox + x * cs, py = oy + y * cs;
+                ctx.globalAlpha = v;
+                ctx.fillStyle = '#232b6b';
+                roundRect(px + inset, py + inset, cs - inset * 2, cs - inset * 2, cs * 0.18);
+                ctx.fill();
+                ctx.strokeStyle = level.reveal[idx(x, y)] > 0.6 && mode !== 'easy' && !inMenu ? '#5eead4' : '#6d7cff';
+                ctx.globalAlpha = v * 0.55;
+                ctx.stroke();
             }
         }
+        ctx.globalAlpha = 1;
 
-        // מעבר לשלב הבא
-        function goToNextLevel() {
-            if (currentLevel < levels.length - 1) {
-                currentLevel++;
-                nextLevelButton.style.display = 'none';
-                statusElement.textContent = '';
-                speak(`עובר לשלב ${currentLevel + 1}. ${levels[currentLevel].description}`, true);
-                setTimeout(() => {
-                    startGame(isTimedMode);
-                }, 2000);
-            }
+        // פורטל
+        const g = level.goal;
+        const gv = mode === 'easy' || inMenu ? 1 : Math.max(visAt(g.x, g.y), mode === 'normal' ? 0.15 : 0);
+        if (gv > 0.02) drawPortal(ox + (g.x + 0.5) * cs, oy + (g.y + 0.5) * cs, cs, gv * (inMenu ? 0.4 : 1));
+
+        // אוצרות
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const it of level.items) {
+            if (it.collected) continue;
+            const v = visAt(it.x, it.y);
+            if (v < 0.03) continue;
+            const cx = ox + (it.x + 0.5) * cs;
+            const cy = oy + (it.y + 0.5) * cs + Math.sin(time * 3 + it.phase) * cs * 0.07;
+            const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, cs * 0.7);
+            glow.addColorStop(0, it.color + '88');
+            glow.addColorStop(1, it.color + '00');
+            ctx.globalAlpha = v;
+            ctx.fillStyle = glow;
+            ctx.fillRect(cx - cs, cy - cs, cs * 2, cs * 2);
+            ctx.font = `${Math.floor(cs * 0.6)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+            ctx.fillText(it.emoji, cx, cy + cs * 0.03);
+        }
+        ctx.globalAlpha = 1;
+
+        // גלי סונאר
+        for (const p of pings) {
+            const a = 1 - p.r / p.max;
+            ctx.strokeStyle = `rgba(94, 234, 212, ${a * 0.8})`;
+            ctx.lineWidth = Math.max(1.5, cs * 0.08) * a + 1;
+            ctx.beginPath();
+            ctx.arc(ox + p.x * cs, oy + p.y * cs, p.r * cs, 0, Math.PI * 2);
+            ctx.stroke();
         }
 
-        // הוסף את מאזין האירועים למקלדת מחוץ לפונקציות
-        document.addEventListener('keydown', handleKeyPress);
-    </script>
+        // חלקיקים
+        for (const p of particles) {
+            ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(ox + p.x * cs, oy + p.y * cs, Math.max(1, p.size * cs), 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        if (!inMenu) drawPlayer(ox, oy, cs);
+
+        // וינייטה סביב השחקן במצב פנס
+        if (mode === 'normal' && !inMenu) {
+            const px = ox + pcx * cs, py = oy + pcy * cs;
+            const vg = ctx.createRadialGradient(px, py, cs * 1.5, px, py, Math.max(W, H));
+            vg.addColorStop(0, 'rgba(2,3,10,0)');
+            vg.addColorStop(1, 'rgba(2,3,10,0.55)');
+            ctx.fillStyle = vg;
+            ctx.fillRect(0, 0, W, H);
+        }
+
+        if (flash > 0) {
+            ctx.fillStyle = `rgba(255, 84, 112, ${flash * 0.25})`;
+            ctx.fillRect(0, 0, W, H);
+        }
+        if (state === 'winning' || (state === 'done' && winAnim > 0)) {
+            ctx.fillStyle = `rgba(61, 255, 162, ${Math.sin(winAnim * Math.PI) * 0.18})`;
+            ctx.fillRect(0, 0, W, H);
+        }
+    }
+
+    const starField = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), s: Math.random() * 1.4 + 0.3, p: Math.random() * 6 }));
+    function drawStars(W, H) {
+        ctx.fillStyle = '#c7d2fe';
+        for (const s of starField) {
+            ctx.globalAlpha = 0.15 + 0.25 * (0.5 + 0.5 * Math.sin(time * 1.3 + s.p));
+            ctx.fillRect(s.x * W, s.y * H, s.s, s.s);
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    function drawPortal(cx, cy, cs, alpha) {
+        const open = goalOpen();
+        const color = open ? '61, 255, 162' : '255, 84, 112';
+        const pulse = 1 + Math.sin(time * 4) * 0.06 + goalPulse * 0.6;
+        ctx.globalAlpha = alpha;
+        const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, cs * 1.1 * pulse);
+        glow.addColorStop(0, `rgba(${color}, 0.55)`);
+        glow.addColorStop(1, `rgba(${color}, 0)`);
+        ctx.fillStyle = glow;
+        ctx.fillRect(cx - cs * 1.5, cy - cs * 1.5, cs * 3, cs * 3);
+        ctx.lineWidth = Math.max(1.5, cs * 0.07);
+        for (let i = 0; i < 3; i++) {
+            const r = cs * (0.15 + i * 0.1) * pulse;
+            const a0 = time * (open ? 3 : 1) * (i % 2 ? -1 : 1) + i;
+            ctx.strokeStyle = `rgba(${color}, ${0.9 - i * 0.2})`;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, a0, a0 + Math.PI * 1.3);
+            ctx.stroke();
+        }
+        if (!open) {
+            ctx.font = `${Math.floor(cs * 0.36)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+            ctx.fillText('🔒', cx, cy + cs * 0.02);
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    function drawPlayer(ox, oy, cs) {
+        const d = DIRS[player.dir];
+        const b = player.bump;
+        const cx = ox + (player.rx + 0.5 + player.bumpDx * b * 0.12) * cs;
+        const cy = oy + (player.ry + 0.5 + player.bumpDy * b * 0.12) * cs;
+        const fade = state === 'winning' ? 1 - winAnim : 1;
+        const r = cs * 0.3 * (state === 'winning' ? 1 - winAnim * 0.8 : 1);
+
+        ctx.globalAlpha = fade;
+        const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, cs * 1.3);
+        glow.addColorStop(0, 'rgba(94, 234, 212, 0.45)');
+        glow.addColorStop(1, 'rgba(94, 234, 212, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(cx - cs * 1.5, cy - cs * 1.5, cs * 3, cs * 3);
+
+        // מעיכה בזמן התנגשות
+        const squashX = 1 - Math.abs(player.bumpDx) * b * 0.25 + Math.abs(player.bumpDy) * b * 0.12;
+        const squashY = 1 - Math.abs(player.bumpDy) * b * 0.25 + Math.abs(player.bumpDx) * b * 0.12;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(squashX, squashY);
+        const body = ctx.createRadialGradient(-r * 0.3, -r * 0.4, r * 0.1, 0, 0, r);
+        body.addColorStop(0, '#ecfeff');
+        body.addColorStop(0.5, '#67e8f9');
+        body.addColorStop(1, '#0891b2');
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // עיניים שמסתכלות לכיוון התנועה
+        const blink = (time % 4) < 0.12 ? 0.15 : 1;
+        const ex = d.dx * r * 0.32, ey = d.dy * r * 0.32;
+        const perpX = -d.dy * r * 0.32, perpY = d.dx * r * 0.32;
+        ctx.fillStyle = '#062a33';
+        for (const s of [-1, 1]) {
+            ctx.beginPath();
+            ctx.ellipse(ex + perpX * s, ey + perpY * s - r * 0.08, r * 0.12, r * 0.17 * blink, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+        ctx.globalAlpha = 1;
+    }
+
+    // ===================================================================
+    //  ממשק
+    // ===================================================================
+    const fmtTime = (s) => {
+        s = Math.max(0, Math.ceil(s));
+        return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    };
+
+    function updateHud() {
+        $('#hudLevel').textContent = levelNum + 1;
+        $('#hudScore').textContent = totalScore;
+        const total = level ? level.items.length : 0;
+        $('#chipItems').hidden = !total;
+        if (total) $('#hudItems').textContent = `${total - remainingItems().length}/${total}`;
+        updateTimeHud();
+    }
+
+    function updateTimeHud() {
+        if (!level) return;
+        const remaining = level.timeLimit - stats.elapsed;
+        $('#hudTime').textContent = settings.timed ? fmtTime(remaining) : fmtTime(stats.elapsed);
+        $('#chipTime').classList.toggle('warn', settings.timed && remaining <= 10 && state === 'playing');
+    }
+
+    function popChip(sel) {
+        const el = $(sel);
+        el.classList.add('pop');
+        setTimeout(() => el.classList.remove('pop'), 200);
+    }
+
+    let helpReturn = null;
+    function showOverlay(sel) {
+        document.querySelectorAll('.overlay').forEach((o) => o.classList.toggle('show', sel !== null && o.matches(sel)));
+    }
+
+    function pause() {
+        if (state !== 'playing') return;
+        state = 'paused';
+        Voice.stop();
+        showOverlay('#ovPause');
+    }
+    function resume() {
+        if (state !== 'paused') return;
+        state = 'playing';
+        showOverlay(null);
+    }
+
+    function goMenu() {
+        state = 'menu';
+        Voice.stop();
+        level = buildLevel(3);
+        refreshMenu();
+        showOverlay('#ovMenu');
+    }
+
+    function refreshMenu() {
+        document.querySelectorAll('#segDifficulty button').forEach((b) => b.classList.toggle('active', b.dataset.v === settings.difficulty));
+        $('#optTimed').checked = settings.timed;
+        $('#record').textContent = best.level ? `🏆 שיא: שלב ${best.level} · ${best.score} נקודות` : '';
+    }
+
+    function refreshToggles() {
+        $('#btnSound').classList.toggle('off', !settings.sound);
+        $('#btnSound').textContent = settings.sound ? '🔊' : '🔇';
+        $('#btnSpeech').classList.toggle('off', !settings.speech);
+    }
+
+    function openHelp() {
+        helpReturn = state === 'playing' ? 'resume' : document.querySelector('.overlay.show')?.id || null;
+        if (state === 'playing') { state = 'paused'; Voice.stop(); }
+        showOverlay('#ovHelp');
+    }
+    function closeHelp() {
+        if (helpReturn === 'resume') { state = 'playing'; showOverlay(null); }
+        else showOverlay(helpReturn ? `#${helpReturn}` : null);
+    }
+
+    function firstGesture() { Sfx.init(); }
+
+    // --- כפתורים ---
+    document.querySelectorAll('#segDifficulty button').forEach((b) => b.addEventListener('click', () => {
+        settings.difficulty = b.dataset.v; saveSettings(); refreshMenu();
+    }));
+    $('#optTimed').addEventListener('change', (e) => { settings.timed = e.target.checked; saveSettings(); });
+    $('#btnStart').addEventListener('click', () => { firstGesture(); startLevel(0, false); });
+    $('#btnMenuHelp').addEventListener('click', openHelp);
+    $('#btnHelp').addEventListener('click', openHelp);
+    $('#btnHelpClose').addEventListener('click', closeHelp);
+    $('#btnPause').addEventListener('click', () => (state === 'paused' ? resume() : pause()));
+    $('#btnResume').addEventListener('click', resume);
+    $('#btnRestart').addEventListener('click', () => { totalScore = scoreAtLevelStart; startLevel(levelNum); });
+    $('#btnQuit').addEventListener('click', goMenu);
+    $('#btnNext').addEventListener('click', () => startLevel(levelNum + 1));
+    $('#btnReplay').addEventListener('click', () => { totalScore = scoreAtLevelStart; startLevel(levelNum); });
+    $('#btnRetry').addEventListener('click', () => startLevel(levelNum));
+    $('#btnOverMenu').addEventListener('click', goMenu);
+    $('#btnPing').addEventListener('click', () => { firstGesture(); sonar(); });
+    $('#btnWhere').addEventListener('click', whereAmI);
+    $('#btnSound').addEventListener('click', () => { firstGesture(); settings.sound = !settings.sound; saveSettings(); refreshToggles(); });
+    $('#btnSpeech').addEventListener('click', () => { settings.speech = !settings.speech; if (!settings.speech) Voice.stop(); saveSettings(); refreshToggles(); });
+
+    document.querySelectorAll('.dpad button').forEach((b) => {
+        b.addEventListener('pointerdown', (e) => { e.preventDefault(); firstGesture(); tryMove(b.dataset.dir); });
+    });
+
+    // --- מקלדת (מאזין יחיד – בגרסה הקודמת נרשם פעמיים וגרם לצעדים כפולים) ---
+    const KEYMAP = { arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down', arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right' };
+    document.addEventListener('keydown', (e) => {
+        firstGesture();
+        const k = e.key.toLowerCase();
+        if (KEYMAP[k] && state === 'playing') { e.preventDefault(); tryMove(KEYMAP[k]); return; }
+        if (k === ' ') { e.preventDefault(); if (!e.repeat) sonar(); return; }
+        if (e.repeat) return;
+        if (k === 'q') whereAmI();
+        else if (k === 'p' || k === 'escape') { if (state === 'paused') resume(); else if ($('#ovHelp').classList.contains('show')) closeHelp(); else pause(); }
+        else if (k === 'h') openHelp();
+        else if (k === 'm') { settings.sound = !settings.sound; saveSettings(); refreshToggles(); }
+        else if (k === 'v') { settings.speech = !settings.speech; if (!settings.speech) Voice.stop(); saveSettings(); refreshToggles(); }
+        else if (k === 'b') { settings.beacon = !settings.beacon; saveSettings(); announce(settings.beacon ? 'משואה פועלת' : 'משואה כבויה'); }
+        else if (k === 'enter') {
+            if (state === 'done') startLevel(levelNum + 1);
+            else if (state === 'over') startLevel(levelNum);
+            else if (state === 'menu' && $('#ovMenu').classList.contains('show')) startLevel(0, false);
+        }
+    });
+
+    // --- החלקה במסך מגע ---
+    let touchStart = null;
+    canvas.addEventListener('pointerdown', (e) => { firstGesture(); touchStart = { x: e.clientX, y: e.clientY }; });
+    canvas.addEventListener('pointerup', (e) => {
+        if (!touchStart) return;
+        const dx = e.clientX - touchStart.x, dy = e.clientY - touchStart.y;
+        touchStart = null;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) { sonar(); return; }
+        if (Math.abs(dx) > Math.abs(dy)) tryMove(dx > 0 ? 'right' : 'left');
+        else tryMove(dy > 0 ? 'down' : 'up');
+    });
+
+    document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+    window.addEventListener('resize', resize);
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
+
+    // --- לולאה ראשית ---
+    let last = performance.now(), hudTimer = 0;
+    function frame(now) {
+        const dt = Math.min(0.05, (now - last) / 1000);
+        last = now;
+        update(dt);
+        draw();
+        hudTimer += dt;
+        if (hudTimer > 0.2) {
+            hudTimer = 0;
+            updateTimeHud();
+            $('#pingCool').style.height = `${(pingCooldown / PING_COOLDOWN) * 100}%`;
+        }
+        requestAnimationFrame(frame);
+    }
+
+    Voice.init();
+    refreshToggles();
+    resize();
+    goMenu();
+    requestAnimationFrame(frame);
+})();
+</script>
 </body>
 </html>
